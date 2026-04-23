@@ -83,7 +83,9 @@ server.tool(
   }
 );
 
-// --- Transport ---
+// --- Startup ---
+
+await client.login();
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
