@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { QobuzClient } from "./qobuz/client.js";
+import { QobuzClient, QobuzApiError } from "./qobuz/client.js";
 
 // --- Env var validation (fail fast if any credential is missing) ---
 function requireEnv(key: string): string {
@@ -27,12 +27,48 @@ const server = new McpServer({
 server.tool(
   "search_qobuz",
   "Search the Qobuz catalog for tracks, albums, or artists",
-  { query: z.string().describe("Natural language search query") },
-  async ({ query }) => {
+  {
+    query: z.string().describe("Natural language search query"),
+    limit: z.number().int().min(1).max(20).optional().default(5)
+      .describe("Max results per category (tracks, albums, artists). Defaults to 5."),
+  },
+  async ({ query, limit }) => {
     try {
-      return { content: [{ type: "text", text: `[stub] search_qobuz called with: ${query}` }] };
+      const results = await client.search(query, limit);
+
+      const lines: string[] = [];
+
+      if (results.tracks.length > 0) {
+        lines.push("**Tracks:**");
+        results.tracks.forEach((t, i) =>
+          lines.push(`  ${i + 1}. "${t.title}" by ${t.artist} (${t.durationSeconds}s, ID: ${t.id})`)
+        );
+      }
+
+      if (results.albums.length > 0) {
+        lines.push("**Albums:**");
+        results.albums.forEach((a, i) =>
+          lines.push(`  ${i + 1}. "${a.title}" by ${a.artist} (ID: ${a.id})`)
+        );
+      }
+
+      if (results.artists.length > 0) {
+        lines.push("**Artists:**");
+        results.artists.forEach((a, i) =>
+          lines.push(`  ${i + 1}. ${a.name} (ID: ${a.id})`)
+        );
+      }
+
+      if (lines.length === 0) {
+        lines.push("No results found.");
+      }
+
+      return { content: [{ type: "text", text: lines.join("\n") }] };
     } catch (err) {
-      return { content: [{ type: "text", text: `Error: ${String(err)}` }], isError: true };
+      const message = err instanceof QobuzApiError
+        ? `Qobuz API error (${err.statusCode}): ${err.message}`
+        : `Unexpected error during search: ${String(err)}`;
+      return { content: [{ type: "text", text: message }], isError: true };
     }
   }
 );

@@ -1,4 +1,8 @@
 import crypto from "node:crypto";
+import type {
+  QobuzSearchResponse,
+  QobuzSearchResult,
+} from "./types.js";
 
 const QOBUZ_API_BASE = "https://www.qobuz.com/api.json/0.2";
 
@@ -119,11 +123,33 @@ export class QobuzClient {
     return response.json() as Promise<T>;
   }
 
-  // To be implemented in Step 3
-  async search(_query: string): Promise<unknown> {
-    throw new Error("Not implemented");
+  // Search Qobuz catalog — returns normalised tracks, albums, and artists.
+  async search(query: string, limit = 5): Promise<QobuzSearchResult> {
+    const raw = await this.request<QobuzSearchResponse>("catalog/search", {
+      query,
+      limit: String(limit),
+    });
+
+    return {
+      tracks: raw.tracks.items.map((t) => ({
+        id: String(t.id),
+        title: t.title,
+        artist: t.performer?.name ?? t.album.artist.name,
+        durationSeconds: t.duration,
+      })),
+      albums: raw.albums.items.map((a) => ({
+        id: String(a.id),
+        title: a.title,
+        artist: a.artist.name,
+      })),
+      artists: raw.artists.items.map((a) => ({
+        id: String(a.id),
+        name: a.name,
+      })),
+    };
   }
 
+  // To be implemented in Step 4
   async getItem(_id: string, _type: QobuzItemType): Promise<unknown> {
     throw new Error("Not implemented");
   }
