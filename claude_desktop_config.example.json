@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "qobuz": {
+      "command": "node",
+      "args": [
+        "/Users/nicksmac/Documents/Claude/Projects/qobuz-mcp/dist/index.js"
+      ],
+      "env": {
+        "QOBUZ_APP_ID": "your_app_id_here",
+        "QOBUZ_APP_SECRET": "your_app_secret_here",
+        "QOBUZ_USERNAME": "your_qobuz_email",
+        "QOBUZ_PASSWORD": "your_qobuz_password"
+      }
+    }
+  }
+}

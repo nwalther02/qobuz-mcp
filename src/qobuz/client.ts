@@ -1,7 +1,13 @@
 import crypto from "node:crypto";
 import type {
+  QobuzAlbumDetails,
+  QobuzArtistDisplayName,
+  QobuzArtistPage,
   QobuzSearchResponse,
   QobuzSearchResult,
+  QobuzResolvedItem,
+  QobuzPlaylistDetails,
+  QobuzTrackDetails,
 } from "./types.js";
 
 const QOBUZ_API_BASE = "https://www.qobuz.com/api.json/0.2";
@@ -149,8 +155,82 @@ export class QobuzClient {
     };
   }
 
-  // To be implemented in Step 4
-  async getItem(_id: string, _type: QobuzItemType): Promise<unknown> {
-    throw new Error("Not implemented");
+  async getItem(id: string, type: QobuzItemType): Promise<QobuzResolvedItem> {
+    switch (type) {
+      case "track": {
+        const track = await this.request<QobuzTrackDetails>("track/get", {
+          track_id: id,
+        });
+
+        return {
+          type: "track",
+          id: String(track.id),
+          title: track.title,
+          artist: track.performer?.name ?? track.album.artist.name,
+          albumTitle: track.album.title,
+          durationSeconds: track.duration,
+          shareUrl: this.buildShareUrl(type, id),
+          playUrl: this.buildPlayUrl(type, id),
+        };
+      }
+      case "album": {
+        const album = await this.request<QobuzAlbumDetails>("album/get", {
+          album_id: id,
+        });
+
+        return {
+          type: "album",
+          id: String(album.id),
+          title: album.title,
+          artist: album.artist.name,
+          durationSeconds: album.duration,
+          tracksCount: album.tracks_count,
+          shareUrl: this.buildShareUrl(type, id),
+          playUrl: this.buildPlayUrl(type, id),
+        };
+      }
+      case "artist": {
+        const artist = await this.request<QobuzArtistPage>("artist/page", {
+          artist_id: id,
+        });
+
+        return {
+          type: "artist",
+          id: String(artist.id),
+          name: this.getArtistDisplayName(artist.name),
+          topTrackCount: artist.top_tracks?.length ?? 0,
+          shareUrl: this.buildShareUrl(type, id),
+          playUrl: this.buildPlayUrl(type, id),
+        };
+      }
+      case "playlist": {
+        const playlist = await this.request<QobuzPlaylistDetails>("playlist/get", {
+          playlist_id: id,
+        });
+
+        return {
+          type: "playlist",
+          id: String(playlist.id),
+          name: playlist.name,
+          ownerName: playlist.owner?.name ?? null,
+          durationSeconds: playlist.duration,
+          tracksCount: playlist.tracks_count,
+          shareUrl: this.buildShareUrl(type, id),
+          playUrl: this.buildPlayUrl(type, id),
+        };
+      }
+    }
+  }
+
+  private buildShareUrl(type: QobuzItemType, id: string): string {
+    return `https://open.qobuz.com/${type}/${encodeURIComponent(id)}`;
+  }
+
+  private buildPlayUrl(type: QobuzItemType, id: string): string {
+    return `https://play.qobuz.com/${type}/${encodeURIComponent(id)}`;
+  }
+
+  private getArtistDisplayName(name: string | QobuzArtistDisplayName): string {
+    return typeof name === "string" ? name : name.display;
   }
 }
